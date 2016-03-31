@@ -33,6 +33,8 @@ class input_layer : public layer<activation::identity> {
 public:
     typedef activation::identity Activation;        //定义Activation
     typedef layer<activation::identity> Base;       //class layer : public layer_base
+    //class identity: public function{ f(), df(), scale()}
+
     CNN_USE_LAYER_MEMBERS;      // #define CNN_USE_LAYER_MEMBERS using layer_base::prev_ using layer_base::output_ ........
 
     input_layer() : Base(0, 0, 0, 0) {}     //layer(in_dim, out_dim, weight_dim, bias_dim)

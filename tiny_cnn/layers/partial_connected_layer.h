@@ -35,9 +35,9 @@ class partial_connected_layer : public layer<Activation> {
 public:
     CNN_USE_LAYER_MEMBERS;
 
-    typedef std::vector<std::pair<cnn_size_t, cnn_size_t> > io_connections;
-    typedef std::vector<std::pair<cnn_size_t, cnn_size_t> > wi_connections;
-    typedef std::vector<std::pair<cnn_size_t, cnn_size_t> > wo_connections;
+    typedef std::vector<std::pair<cnn_size_t, cnn_size_t> > io_connections;     //[in_id, out_id]
+    typedef std::vector<std::pair<cnn_size_t, cnn_size_t> > wi_connections;     //[weight_id, in_id]
+    typedef std::vector<std::pair<cnn_size_t, cnn_size_t> > wo_connections;     //[weight_id, out_id]
     typedef layer<Activation> Base;
 
     partial_connected_layer(cnn_size_t in_dim, cnn_size_t out_dim, size_t weight_dim, size_t bias_dim, float_t scale_factor = float_t(1))
@@ -45,7 +45,12 @@ public:
           weight2io_(weight_dim), out2wi_(out_dim), in2wo_(in_dim), bias2out_(bias_dim), out2bias_(out_dim),
           scale_factor_(scale_factor) {}
 
-    size_t param_size() const override {
+          //in_width * in_height * in_channels   =>    in_dim, 
+          //conv_out * conv_out  =>    out_dim
+          //window_size * window_size * in_channel * out_chanel  =>  weight_dim
+          //bias_dim    =>      bias_dim
+
+    size_t param_size() const override {        //计算参数个数
         size_t total_param = 0;
         for (auto w : weight2io_)
             if (w.size() > 0) total_param++;
@@ -54,7 +59,7 @@ public:
         return total_param;
     }
 
-    size_t connection_size() const override {
+    size_t connection_size() const override {       //计算连接数
         size_t total_size = 0;
         for (auto io : weight2io_)
             total_size += io.size();
@@ -64,7 +69,7 @@ public:
     }
 
     size_t fan_in_size() const override {
-        return max_size(out2wi_);
+        return max_size(out2wi_);           //返回out2wi_中各个vector<wi>的最大size值
     }
 
     size_t fan_out_size() const override {
