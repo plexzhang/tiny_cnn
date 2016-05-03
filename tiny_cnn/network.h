@@ -44,20 +44,20 @@ namespace tiny_cnn {
 struct result {
     result() : num_success(0), num_total(0) {}
 
-    double accuracy() const {
-        return num_success * 100.0 / num_total;
+    double accuracy() const {                       // 输出最终结果：98.91%
+        return num_success * 100.0 / num_total;             
     }
 
     template <typename Char, typename CharTraits>
-    void print_summary(std::basic_ostream<Char, CharTraits>& os) const {
-        os << "accuracy:" << accuracy() << "% (" << num_success << "/" << num_total << ")" << std::endl;
+    void print_summary(std::basic_ostream<Char, CharTraits>& os) const {            // biasic_ostream基本等价于ostream
+        os << "accuracy:" << accuracy() << "% (" << num_success << "/" << num_total << ")" << std::endl;  // 结果98.91%，(9891/10000)      
     }
     //basic_ostream是模板化的ostream，stream针对char类型字符，basic_ostream针对任意给定类型的字符。使用basic_stream<wchar_t>
 
     template <typename Char, typename CharTraits>
-    void print_detail(std::basic_ostream<Char, CharTraits>& os) {
+    void print_detail(std::basic_ostream<Char, CharTraits>& os) {       // 输出最终结果 num% + confusion_matrix
         print_summary(os);
-        auto all_labels = labels();
+        auto all_labels = labels();         // label_t个元素的集合
 
         os << std::setw(5) << "*" << " ";
         for (auto c : all_labels) 
@@ -67,25 +67,28 @@ struct result {
         for (auto r : all_labels) {
             os << std::setw(5) << r << " ";           
             for (auto c : all_labels) 
-                os << std::setw(5) << confusion_matrix[r][c] << " ";
+                os << std::setw(5) << confusion_matrix[r][c] << " ";  // confusion_matrix[r]表示元素map<label_t, int>, c_x[r][c]表示int即预测图像数量
             os << std::endl;
         }
     }
 
     std::set<label_t> labels() const {
-        std::set<label_t> all_labels;	//定义label_t类型的集合，all_labels
-        for (auto r : confusion_matrix) {
-            all_labels.insert(r.first);
-            for (auto c : r.second)
-                all_labels.insert(c.first);
+        std::set<label_t> all_labels;	//label_t=size_t，all_labels表示labels的集合，set表示labels不重复
+        for (auto r : confusion_matrix) {    // r对应<label_t, map<label_t, int> >，循环label_t次
+            all_labels.insert(r.first);             // 插入label_t
+            for (auto c : r.second)                // c对应<label_t, int>，循环label_t次
+                all_labels.insert(c.first);         // 插入label_t，label_t不重复，则all_labels为label_t个的set集合
         }
         return all_labels;
     }
 
     int num_success;
     int num_total;
-    std::map<label_t, std::map<label_t, int> > confusion_matrix;
-};
+    std::map<label_t, std::map<label_t, int> > confusion_matrix;    // confusion_matrix表示<label_t, map<label_t, int> >
+                                                                 // 其中的元素map<label_t, int>的表示该label_t的预测图像数量
+                                                                 // map<0, map<,>>有label_t个元素，其中的元素map<,>也有label_t个，所以confusion_matrix有label_t*label_t个元素
+
+};          // struct result
 
 enum grad_check_mode {
     GRAD_CHECK_ALL, ///< check all elements of weights
@@ -103,41 +106,41 @@ public:
     /**
      * return input dims of network
      **/
-    cnn_size_t in_dim() const         { return layers_.head()->in_size(); }
+    cnn_size_t in_dim() const         { return layers_.head()->in_size(); }     // 网络的输入size
 
     /**
      * return output dims of network
      **/
-    cnn_size_t out_dim() const        { return layers_.tail()->out_size(); }
+    cnn_size_t out_dim() const        { return layers_.tail()->out_size(); }    // 网络的输出size
 
-    std::string  name() const           { return name_; }
-    Optimizer&   optimizer()            { return optimizer_; }
+    std::string  name() const           { return name_; }               // 网络名字
+    Optimizer&   optimizer()            { return optimizer_; }        // 优化方式
 
     /**
      * explicitly initialize weights of all layers
      **/
-    void         init_weight()          { layers_.init_weight(); }
+    void         init_weight()          { layers_.init_weight(); }      // 初始化
 
     /**
      * add one layer to tail(output-side)
      **/
-    void         add(std::shared_ptr<layer_base> layer) { layers_.add(layer); }
+    void         add(std::shared_ptr<layer_base> layer) { layers_.add(layer); }     // 在网络中新加一层
 
     /**
      * executes forward-propagation and returns output
      **/
-    vec_t        predict(const vec_t& in) { return fprop(in); }
+    vec_t        predict(const vec_t& in) { return fprop(in); }             // 执行前向，返回输入的对应输出，vec_t表示数组
 
     /**
      * executes forward-propagation and returns maximum output
      **/
     float_t      predict_max_value(const vec_t& in) {
-        return fprop_max(in);
+        return fprop_max(in);                                                       // 返回输出最大值
     }
     /**
      * executes forward-propagation and returns maximum output index
      **/
-    label_t      predict_label(const vec_t& in) {
+    label_t      predict_label(const vec_t& in) {                           // 返回输出值最大索引
         return fprop_max_index(in);
     }
 
@@ -147,7 +150,7 @@ public:
      * @param in input value range(double[], std::vector<double>, std::list<double> etc)
      **/
     template <typename Range>
-    vec_t        predict(const Range& in) {
+    vec_t        predict(const Range& in) {             
         using std::begin; // for ADL
         using std::end;
         return predict(vec_t(begin(in), end(in)));
@@ -165,8 +168,8 @@ public:
      * @param n_threads          number of tasks
      */
     template <typename OnBatchEnumerate, typename OnEpochEnumerate, typename T>
-    bool train(const std::vector<vec_t>& in,
-               const std::vector<T>&     t,
+    bool train(const std::vector<vec_t>& in,                // in 表示二维数组，in.size()表示图像张数，in[i]表示一张图像，in[i][j]表示图像具体像素
+               const std::vector<T>&     t,                         // t 表示图像，t.size()也表示图像张数，其中t[i]表示label具体值                                                                                                                          
                size_t                    batch_size,
                int                       epoch,
                OnBatchEnumerate          on_batch_enumerate,
@@ -176,28 +179,28 @@ public:
                const int                 n_threads = CNN_TASK_SIZE
                )
     {
-        check_training_data(in, t);
-        set_netphase(net_phase::train);
+        check_training_data(in, t);                // 检测data与network的输入与输出匹配情况
+        set_netphase(net_phase::train);     // 逐层设置TRAIN状态
         if (reset_weights)
-            init_weight();
-        layers_.set_parallelize(batch_size < CNN_TASK_SIZE);
+            init_weight();                              // 逐层初始化各层
+        layers_.set_parallelize(batch_size < CNN_TASK_SIZE);        // 如果batch_size<CNN_TASK_SIZE=8，则执行并行操作；否则无动作
         optimizer_.reset();
 
-        for (int iter = 0; iter < epoch; iter++) {
-            if (optimizer_.requires_hessian())
+        for (int iter = 0; iter < epoch; iter++) {          // iter次数以内
+            if (optimizer_.requires_hessian())              // 是否需要hessian矩阵
                 calc_hessian(in);
-            for (size_t i = 0; i < in.size(); i+=batch_size) {
-                train_once(&in[i], &t[i],
-                           static_cast<int>(std::min(batch_size, in.size() - i)),
-                           n_threads);
-                on_batch_enumerate();
+            for (size_t i = 0; i < in.size(); i+=batch_size) {              // 每次iter中，在分别训练多次batch_size的图像
+                train_once(&in[i], &t[i],                                           // i+=batch_size
+                           static_cast<int>(std::min(batch_size, in.size() - i)),       // 如果满足batch_size则训练其数量的图像，否则就训练剩余图像
+                           n_threads);                                                   // n_threads为CNN_TASK_SIZE=8
+                on_batch_enumerate();                                           // 执行batch枚举
 
-                if (i % 100 == 0 && layers_.is_exploded()) {
+                if (i % 100 == 0 && layers_.is_exploded()) {            // 如果batch_size整百，且所有layer都被访问过，则报错退出
                     std::cout << "[Warning]Detected infinite value in weight. stop learning." << std::endl;
                     return false;
                 }
             }
-            on_epoch_enumerate();
+            on_epoch_enumerate();                    // 执行epoch枚举
         }
         return true;
     }
@@ -206,9 +209,9 @@ public:
      * training conv-net without callback
      **/
     template<typename T>
-    bool train(const std::vector<vec_t>& in, const std::vector<T>& t, size_t batch_size = 1, int epoch = 1) {
-        set_netphase(net_phase::train);
-        return train(in, t, batch_size, epoch, nop, nop);
+    bool train(const std::vector<vec_t>& in, const std::vector<T>& t, size_t batch_size = 1, int epoch = 1) {       // 无回掉训练，重载train
+        set_netphase(net_phase::train);                             
+        return train(in, t, batch_size, epoch, nop, nop);  
     }
 
     /**
@@ -574,7 +577,7 @@ private:
     }
 
     void check_t(size_t i, label_t t, cnn_size_t dim_out) {
-        if (t >= dim_out) {
+        if (t >= dim_out) {                     // 如果label的t[i]的值大于网络输出标签数量out_dim，即出错
             std::ostringstream os;
             os << format_str("t[%u]=%u, dim(network output)=%u", i, t, dim_out) << std::endl;
             os << "in classification task, dim(network output) must be greater than max class id." << std::endl;
@@ -591,29 +594,30 @@ private:
     }
 
     template <typename T>
-    void check_training_data(const std::vector<vec_t>& in, const std::vector<T>& t) {
-        cnn_size_t dim_in = in_dim();
-        cnn_size_t dim_out = out_dim();
+    void check_training_data(const std::vector<vec_t>& in, const std::vector<T>& t) {           //j检测图像和label的匹配
+        cnn_size_t dim_in = in_dim();                   // 输入图像维数，layer_.head()->in_size()
+        cnn_size_t dim_out = out_dim();               // 网络输出，layer_.tail()->out-size()
 
-        if (in.size() != t.size())
+
+        if (in.size() != t.size())                                  // in.size()表示图像张数
             throw nn_error("number of training data must be equal to label data");
 
-        size_t num = in.size();
+        size_t num = in.size();                     // num图像张数
 
-        for (size_t i = 0; i < num; i++) {
-            if (in[i].size() != dim_in)
+        for (size_t i = 0; i < num; i++) {          // 检测num张图像
+            if (in[i].size() != dim_in)                 // in[i].size() 表示每张图像维度
                 throw nn_error(format_str("input dimension mismatch!\n dim(data[%u])=%d, dim(network input)=%u", i, in[i].size(), dim_in));
 
-            check_t(i, t[i], dim_out);
+            check_t(i, t[i], dim_out);              // 检测第i张图像的label维度和网络输出维度，dim_out为标签个数，保证每张图像的label都匹配
         }
     }
 
     float_t target_value_min() const { return layers_.tail()->activation_function().scale().first; }
     float_t target_value_max() const { return layers_.tail()->activation_function().scale().second; }
 
-    std::string name_;
-    Optimizer optimizer_;
-    layers layers_;
+    std::string name_;              // 网络名字
+    Optimizer optimizer_;       // 优化方式
+    layers layers_;                 // 
 };
 
 /**
