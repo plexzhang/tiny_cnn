@@ -38,10 +38,11 @@ public:
 
     fully_connected_layer(cnn_size_t in_dim, cnn_size_t out_dim, bool has_bias = true)
         : Base(in_dim, out_dim, size_t(in_dim) * out_dim, has_bias ? out_dim : 0), has_bias_(has_bias) {}
+        // in_dim,  out_dim,    in_dim*out_dim,     bias
 
     size_t connection_size() const override {
         return size_t(in_size_) * out_size_ + size_t(has_bias_) * out_size_;
-    }
+    }               // (in_size + bias) * out_size
 
     size_t fan_in_size() const override {
         return in_size_;

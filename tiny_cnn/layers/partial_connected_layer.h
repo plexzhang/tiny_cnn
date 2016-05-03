@@ -69,11 +69,11 @@ public:
     }
 
     size_t fan_in_size() const override {
-        return max_size(out2wi_);           //返回out2wi_中各个vector<wi>的最大size值
+        return max_size(out2wi_);           //返回out2wi_中各个元素io_connections，即vector<wi>的最大size值
     }
 
     size_t fan_out_size() const override {
-        return max_size(in2wo_);
+        return max_size(in2wo_);            //返回out2wi_中各个元素io_connections，即vector<wi>的最大size值
     }
 
     void connect_weight(cnn_size_t input_index, cnn_size_t output_index, cnn_size_t weight_index) {
