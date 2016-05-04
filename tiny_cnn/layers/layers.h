@@ -1,7 +1,7 @@
 /*
     Copyright (c) 2013, Taiga Nomi
     All rights reserved.
-    
+
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions are met:
     * Redistributions of source code must retain the above copyright
@@ -13,26 +13,26 @@
     names of its contributors may be used to endorse or promote products
     derived from this software without specific prior written permission.
 
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY 
-    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY 
-    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; 
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND 
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+    EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY
+    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #pragma once
-#include "tiny_cnn/layers/layer.h"
+#include "/deep/tmp/tiny_cnn/tiny_cnn/layers/layer.h"
 #include "input_layer.h"
 
 namespace tiny_cnn {
 
 class layers {
 public:
-    layers() { add(std::make_shared<input_layer>()); }      //构造输出layer, 创建临时指针, 初始化为空; ps: shared_ptr<int> p = make_shared<int>(42)
+    layers() { add(std::make_shared<input_layer>()); }      //构造输出layer, 默认初始化加入input_layer层; ps: shared_ptr<int> p = make_shared<int>(42)
 
     layers(const layers& rhs) { construct(rhs); }           //构造网络layers
 
@@ -55,13 +55,13 @@ public:
 
     template <typename T>
     const T& at(size_t index) const {
-        const T* v = dynamic_cast<const T*>(layers_[index + 1].get());        //dynamic_cast是将基类指针或引用转换为派生类的指针或引用 
+        const T* v = dynamic_cast<const T*>(layers_[index + 1].get());        //dynamic_cast是将基类指针或引用转换为派生类的指针或引用
         if (v) return *v;                         //如果v该层存在, 则返回
         throw nn_error("failed to cast");
     }
 
     const layer_base* operator [] (size_t index) const {            //重载[], 通过layers[]使用
-        return layers_[index + 1].get();
+        return layers_[index + 1].get();                            // shared_ptr.get() 表示获得传统的C指针                    
     }
 
     layer_base* operator [] (size_t index) {            //重载[], 通过layers[]使用
@@ -86,11 +86,11 @@ public:
 
     template <typename Optimizer>
     void update_weights(Optimizer *o, size_t worker_size, size_t batch_size) {
-        for (auto pl : layers_)
-            pl->update_weight(o, static_cast<cnn_size_t>(worker_size), batch_size);         //update_weights逐层更新权值
+        for (auto pl : layers_)                     // pl表示point layer
+            pl->update_weight(o, static_cast<cnn_size_t>(worker_size), batch_size);         //逐层update_weight更新权值
     }
-    
-    void set_parallelize(bool parallelize) {
+
+    void set_parallelize(bool parallelize) {    // 是否并行
         for (auto pl : layers_)
             pl->set_parallelize(parallelize);       //逐层设置并行化
     }
@@ -101,13 +101,14 @@ public:
     }
 
 private:
-    void construct(const layers& rhs) {
+    void construct(const layers& rhs) {                   // 构造网络，逐层加入各层
         add(std::make_shared<input_layer>());       //构造输入层
         for (size_t i = 1; i < rhs.layers_.size(); i++)     //逐层添加网络每层
             add(rhs.layers_[i]);
     }
 
-    std::vector<std::shared_ptr<layer_base>> layers_;           // layers存储各layer, 每个layer用shared_ptr<layer_base>表示
+    std::vector<std::shared_ptr<layer_base>> layers_;           // layers存储各layer, layers元素是用shared_ptr<layer_base>指针表示
+                                                                                            // layers为layer的集合，主要对其中各层进行总体操作
 };
 
 } // namespace tiny_cnn

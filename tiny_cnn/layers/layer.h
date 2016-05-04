@@ -45,21 +45,21 @@ public:
 
     virtual ~layer_base() {}
 
-    layer_base(cnn_size_t in_dim, cnn_size_t out_dim, size_t weight_dim, size_t bias_dim)   
+    layer_base(cnn_size_t in_dim, cnn_size_t out_dim, size_t weight_dim, size_t bias_dim)   // 初始化设置，构造函数
         : parallelize_(true), next_(nullptr), prev_(nullptr),
           weight_init_(std::make_shared<weight_init::xavier>()),
           bias_init_(std::make_shared<weight_init::constant>(float_t(0))) {
         set_size(in_dim, out_dim, weight_dim, bias_dim);
     }   //初始化weight与bias
 
-    void connect(std::shared_ptr<layer_base>& tail) {   //tail表示添加的最尾层
+    void connect(std::shared_ptr<layer_base>& tail) {   //tail表示要添加的最新层
         if (out_size() != 0 && tail->in_size() != out_size())   //out_size()为目前层的输出, 判断目前层的输出与新添层输入的匹配
             connection_mismatch(*this, *tail);  //this表示目前层, tail表示新添层
         next_ = tail.get();         //通过链表讲两层相连接
         tail->prev_ = this;
     }   
 
-    void set_parallelize(bool parallelize) {        //设置并行计算
+    void set_parallelize(bool parallelize) {        //设置并行计算，使用OpenMP或TBB
         parallelize_ = parallelize;
     }
 
@@ -123,9 +123,9 @@ public:
     virtual index3d<cnn_size_t> out_shape() const { return index3d<cnn_size_t>(out_size(), 1, 1); }
 
     ///< name of layer. should be unique for each concrete class
-    virtual std::string layer_type() const = 0;
+    virtual std::string layer_type() const = 0;                 // convolution, pooling和fc的type不同，重载虚函数
 
-    virtual activation::function& activation_function() = 0;
+    virtual activation::function& activation_function() = 0;        // 各层激活函数不同
 
     /////////////////////////////////////////////////////////////////////////
     // setter(设置函数)
@@ -145,13 +145,13 @@ public:
 
     /////////////////////////////////////////////////////////////////////////
     // save/load
-    virtual void save(std::ostream& os) const {
+    virtual void save(std::ostream& os) const {             // 保存
         if (is_exploded()) throw nn_error("failed to save weights because of infinite weight");
         for (auto w : W_) os << w << " ";
         for (auto b : b_) os << b << " ";
     }
 
-    virtual void load(std::istream& is) {
+    virtual void load(std::istream& is) {                   // 加载
         for (auto& w : W_) is >> w;
         for (auto& b : b_) is >> b;
     }
@@ -162,7 +162,7 @@ public:
     ///< visualize latest output of this layer
     ///< default implementation interpret output as 1d-vector,
     ///< so "visual" layer(like convolutional layer) should override this for better visualization.
-    virtual image<> output_to_image(size_t worker_index = 0) const {
+    virtual image<> output_to_image(size_t worker_index = 0) const {        // worker_index表示线程数
         return vec2image<unsigned char>(output_[worker_index]);
     }       //可视化, 默认情况下, 输出为1维向量,  类似卷积层的可视化, 通过override重写
 
@@ -173,14 +173,14 @@ public:
      * return output vector
      * output vector must be stored to output_[worker_index]
      **/
-    virtual const vec_t& forward_propagation(const vec_t& in, size_t worker_index) = 0;     //根据输入, 返回输出, 存储为output_[]
-
+    virtual const vec_t& forward_propagation(const vec_t& in, size_t worker_index) = 0;     //convolution, pooling和fc层的前向方式不同
+                                                                                                                                            // in为输入数组, 表示一张图像, 返回vec_t数组，worker表示线程数量
     /**
      * return delta of previous layer (delta=\frac{dE}{da}, a=wx in fully-connected layer)
      * delta must be stored to prev_delta_[worker_index]
      **/
-    virtual const vec_t& back_propagation(const vec_t& current_delta, size_t worker_index) = 0; //  根据当前delta, 返回前一delta
-
+        virtual const vec_t& back_propagation(const vec_t& current_delta, size_t worker_index) = 0;   // convolution, pooling和fc层的反向方式不同
+                                                                                                                        // delta为输入数组, 表示一张图像, 返回vec_t数组，worker表示线程数量
     /**
      * return delta2 of previous layer (delta2=\frac{d^2E}{da^2}, diagonal of hessian matrix)
      * it is never called if optimizer is hessian-free
@@ -214,7 +214,7 @@ public:
         post_update();
     }
 
-    bool has_same_weights(const layer_base& rhs, float_t eps) const {
+    bool has_same_weights(const layer_base& rhs, float_t eps) const {       // 检测两个层是否有相同权值
         if (W_.size() != rhs.W_.size() || b_.size() != rhs.b_.size())
             return false;
 
@@ -233,7 +233,7 @@ protected:
 
     layer_base* next_;
     layer_base* prev_;
-    vec_t a_[CNN_TASK_SIZE];          // w * x          #define CNN_TASK_SIZE 100 or 8
+    vec_t a_[CNN_TASK_SIZE];          // w * x          #define CNN_TASK_SIZE 8
     vec_t output_[CNN_TASK_SIZE];     // last output of current layer, set by fprop
     vec_t prev_delta_[CNN_TASK_SIZE]; // last delta of previous layer, set by bprop
     vec_t W_;          // weight vector         W_和dW_不同, 只表示一层的Weight
@@ -291,7 +291,7 @@ private:
         bhessian_.resize(bias_dim);
         prev_delta2_.resize(in_dim);
 
-        for (auto& o : output_)     o.resize(out_dim);  //output_为 vector<float_t> output_[CNN_TASK_SIZE], 其中output_[0]为vector, 则for(output[0]~output[CNN_TASK_SIZE])
+        for (auto& o : output_)     o.resize(out_dim);  //output_为 vector<float_t> output_[CNN_TASK_SIZE], 将output_分为CNN_TASK_SIZE，即8组oupout_[8]，加快处理
         for (auto& a : a_)          a.resize(out_dim);
         for (auto& p : prev_delta_) p.resize(in_dim);
         for (auto& dw : dW_) dw.resize(weight_dim);
