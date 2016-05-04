@@ -300,7 +300,7 @@ private:
 };
 
 template<typename Activation>
-class layer : public layer_base {
+class layer : public layer_base {               // 普通层，如输入层
 public:
     layer(cnn_size_t in_dim, cnn_size_t out_dim, size_t weight_dim, size_t bias_dim)        
         : layer_base(in_dim, out_dim, weight_dim, bias_dim) {}

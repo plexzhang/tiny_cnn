@@ -33,8 +33,8 @@ namespace activation {
 
 class function {
 public:
-    function() = default;       //生成默认构造函数
-    function(const function &) = default;    //生成默认构造函数
+    function() = default;                                      //生成默认构造函数
+    function(const function &) = default;           //生成默认构造函数
 #ifndef CNN_DEFAULT_MOVE_CONSTRUCTOR_UNAVAILABLE
     function(function &&) = default;
 #endif
@@ -82,7 +82,7 @@ public:
 
 typedef relu rectified_linear; // for compatibility
 
-class leaky_relu : public function {
+class leaky_relu : public function {            //lrelu
 public:
     using function::df;
     float_t f(const vec_t& v, cnn_size_t i) const override { return (v[i] > float_t(0)) ? v[i] : float_t(0.01) * v[i]; }
@@ -98,7 +98,7 @@ public:
     std::pair<float_t, float_t> scale() const override { return std::make_pair(float_t(0.1), float_t(0.9)); }
 };
 
-class softmax : public function {
+class softmax : public function {                   // 最终输出层结果
 public:
     float_t f(const vec_t& v, cnn_size_t i) const override {
         float_t alpha = *std::max_element(v.begin(), v.end());

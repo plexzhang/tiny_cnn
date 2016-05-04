@@ -48,7 +48,7 @@ public:
     std::string layer_type() const override { return next_ ? next_->layer_type() : "input"; }
 
     const vec_t& forward_propagation(const vec_t& in, size_t index) override {
-        output_[index] = in;
+        output_[index] = in;                // index表示不同线程，output_[index]表示各线程输出
         return next_ ? next_->forward_propagation(in, index) : output_[index];
     }
 
