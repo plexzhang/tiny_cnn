@@ -35,8 +35,8 @@ namespace tiny_cnn {
  * usesHessian : true if an optimizer uses hessian (2nd order derivative of loss function)
  **/
 template <bool usesHessian>
-struct optimizer {
-    optimizer() = default;
+struct optimizer {                                          // 优化方法基类
+    optimizer() = default;                                  // 默认构造函数
     optimizer(const optimizer &) = default;
 #ifndef CNN_DEFAULT_MOVE_CONSTRUCTOR_UNAVAILABLE
     optimizer(optimizer &&) = default;
@@ -179,7 +179,7 @@ private:
  *
  * slightly faster than tiny_cnn::momentum
  **/
-struct gradient_descent : public optimizer<false> {
+struct gradient_descent : public optimizer<false> {                             // 梯度下降法优化
     gradient_descent() : alpha(float_t(0.01)), lambda(float_t(0)) {}
 
     void update(const vec_t& dW, const vec_t& /*Hessian*/, vec_t& W) {
