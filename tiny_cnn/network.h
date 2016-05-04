@@ -229,24 +229,25 @@ public:
      * test and generate confusion-matrix for classification task
      **/
     result test(const std::vector<vec_t>& in, const std::vector<label_t>& t) {
-        result test_result;
-        set_netphase(net_phase::test);
-        for (size_t i = 0; i < in.size(); i++) {
-            const label_t predicted = fprop_max_index(in[i]);
-            const label_t actual = t[i];
+        result test_result;                                 // 创建test_result
+        set_netphase(net_phase::test);            // 各层初始化为test
+        for (size_t i = 0; i < in.size(); i++) {        // 每张图像, i[i]表示每张图像
+            const label_t predicted = fprop_max_index(in[i]);       // 预测每张图像的输出最大值索引号，即预测label号
+            const label_t actual = t[i];                                            // 实际label号
 
-            if (predicted == actual) test_result.num_success++;
+            if (predicted == actual) test_result.num_success++;         // 预测成功，num_success+1
             test_result.num_total++;
-            test_result.confusion_matrix[predicted][actual]++;
+            test_result.confusion_matrix[predicted][actual]++;          // 普通混淆矩阵的行是actual，列为predicted；在这里，行为predicted，列为actual
+                                                                                                    // 这个矩阵与普通混淆矩阵呈转置关系，但是表达意思相同
         }
-        return test_result;
+        return test_result;                                 // 返回结果
     }
 
     std::vector<vec_t> test(const std::vector<vec_t>& in)
      {
-            std::vector<vec_t> test_result(in.size());
-            set_netphase(net_phase::test);
-            for_i(in.size(), [&](int i)
+            std::vector<vec_t> test_result(in.size());          // test_result二维数组，test_result.size()对应输入图像张数
+            set_netphase(net_phase::test);                      // test_result[i]表示一张图像的网络输出，即一列向量由0,1组成的
+            for_i(in.size(), [&](int i)                                 
             {
                 test_result[i] = predict(in[i]);
             });
@@ -259,9 +260,9 @@ public:
     float_t get_loss(const std::vector<vec_t>& in, const std::vector<vec_t>& t) {
         float_t sum_loss = float_t(0);
 
-        for (size_t i = 0; i < in.size(); i++) {
-            const vec_t predicted = predict(in[i]);
-            sum_loss += get_loss(predict(in[i]), t[i]);
+        for (size_t i = 0; i < in.size(); i++) {                        // in[i]表示图像
+            const vec_t predicted = predict(in[i]);             // predicted表示一张图像的网络输出，即一列向量由0,1组成的
+            sum_loss += get_loss(predict(in[i]), t[i]);         // t[i]为第i张图像的标签，计算loss值
         }
         return sum_loss;
     }
@@ -270,22 +271,22 @@ public:
      * save network weights into stream
      * @attention this saves only network *weights*, not network configuration
      **/
-    void save(std::ostream& os) const {
-        os.precision(std::numeric_limits<tiny_cnn::float_t>::digits10);
+    void save(std::ostream& os) const {         // 将网络的权值保存，而不保存网络配置
+        os.precision(std::numeric_limits<tiny_cnn::float_t>::digits10);     // 设置输出digits10表示十进制数字的个数
 
-        auto l = layers_.head();
-        while (l) { l->save(os); l = l->next(); }
+        auto l = layers_.head();        
+        while (l) { l->save(os); l = l->next(); }           // 逐层保存网络
     }
 
     /**
      * load network weights from stream
      * @attention this loads only network *weights*, not network configuration
      **/
-    void load(std::istream& is) {
+    void load(std::istream& is) {                    // 加载网络权值
         is.precision(std::numeric_limits<tiny_cnn::float_t>::digits10);
 
         auto l = layers_.head();
-        while (l) { l->load(is); l = l->next(); }
+        while (l) { l->load(is); l = l->next(); }       // 逐层加载
     }
 
     /**
@@ -293,33 +294,33 @@ public:
      * detail information:
      * http://ufldl.stanford.edu/wiki/index.php/Gradient_checking_and_advanced_optimization
      **/
-    bool gradient_check(const vec_t* in, const label_t* t, int data_size, float_t eps, grad_check_mode mode) {
+    bool gradient_check(const vec_t* in, const label_t* t, int data_size, float_t eps, grad_check_mode mode) {      // eps表示周期数
         assert(!layers_.empty());
-        std::vector<vec_t> v;
-        label2vector(t, data_size, &v);
+        std::vector<vec_t> v;                           // v 二维数组，如三张图像的label[2,0,3]转换为矩阵[0,0,1,0,0; 1,0,0,0,0; 0,0,0,1,0]
+        label2vector(t, data_size, &v);             // 将label数组转换为label二维矩阵
 
-        auto current = layers_.head();
+        auto current = layers_.head();              // 初始层
 
-        while ((current = current->next()) != 0) { // ignore first input layer
-            vec_t& w = current->weight();
-            vec_t& b = current->bias();
-            vec_t& dw = current->weight_diff(0);
-            vec_t& db = current->bias_diff(0);
+        while ((current = current->next()) != 0) { // ignore first input layer      逐层计算
+            vec_t& w = current->weight();             // 当前层的权值，feature_in * feature_out
+            vec_t& b = current->bias();                 // 当前层的偏置，有feature_out个bias
+            vec_t& dw = current->weight_diff(0);  // 当前层的delta_W
+            vec_t& db = current->bias_diff(0);      // 当前层的delta_b
 
-            if (w.empty()) continue;
+            if (w.empty()) continue;                    // 如果w为空，则跳过
             
             switch (mode) {
-            case GRAD_CHECK_ALL:
-                for (int i = 0; i < (int)w.size(); i++)
-                    if (!calc_delta(in, &v[0], data_size, w, dw, i, eps)) return false;
+            case GRAD_CHECK_ALL:                // 检测权值的所有元素
+                for (int i = 0; i < (int)w.size(); i++)         // w.size() = f_in * f_out * w_s * w_s
+                    if (!calc_delta(in, &v[0], data_size, w, dw, i, eps)) return false;         // 检测权值中第i个值，v[0]为vector数组，即输出标签数组[0, 0, 0, 1]形式
                 for (int i = 0; i < (int)b.size(); i++)
-                    if (!calc_delta(in, &v[0], data_size, b, db, i, eps)) return false;
+                    if (!calc_delta(in, &v[0], data_size, b, db, i, eps)) return false;         // 计算bias的第i个值
                 break;
             case GRAD_CHECK_RANDOM:
                 for (int i = 0; i < 10; i++)
-                    if (!calc_delta(in, &v[0], data_size, w, dw, uniform_idx(w), eps)) return false;
+                    if (!calc_delta(in, &v[0], data_size, w, dw, uniform_idx(w), eps)) return false;        // 随机检测权值的10个值
                 for (int i = 0; i < 10; i++)
-                    if (!calc_delta(in, &v[0], data_size, b, db, uniform_idx(b), eps)) return false;
+                    if (!calc_delta(in, &v[0], data_size, b, db, uniform_idx(b), eps)) return false;        // 随机检测bias的10个值
                 break;
             default:
                 throw nn_error("unknown grad-check type");
@@ -329,7 +330,7 @@ public:
     }
 
     template <typename L, typename O>
-    bool has_same_weights(const network<L, O>& others, float_t eps) const {
+    bool has_same_weights(const network<L, O>& others, float_t eps) const {         // 比较两个网络之间权值的相同性
         auto h1 = layers_.head();
         auto h2 = others.layers_.head();
 
@@ -346,7 +347,7 @@ public:
      * return index-th layer as <T>
      * throw nn_error if index-th layer cannot be converted to T
      **/
-    template <typename T>
+    template <typename T>                       // 第i个索引号
     const T& at(size_t index) const {
         return layers_.at<T>(index);
     }
@@ -354,7 +355,7 @@ public:
     /**
      * return raw pointer of index-th layer
      **/
-    const layer_base* operator [] (size_t index) const {
+    const layer_base* operator [] (size_t index) const {            // 重载[]表示第i层
         return layers_[index];
     }
 
@@ -383,7 +384,7 @@ public:
      * set weight initializer to all layers
      **/
     template <typename WeightInit>
-    network& weight_init(const WeightInit& f) {
+    network& weight_init(const WeightInit& f) {             // 用已有参数初始化各层
         auto ptr = std::make_shared<WeightInit>(f);
         for (size_t i = 0; i < depth(); i++)
           layers_[i]->weight_init(ptr);
@@ -394,7 +395,7 @@ public:
      * set bias initializer to all layers
      **/
     template <typename BiasInit>
-    network& bias_init(const BiasInit& f) { 
+    network& bias_init(const BiasInit& f) {             // 初始化各bias
         auto ptr = std::make_shared<BiasInit>(f);
         for (size_t i = 0; i < depth(); i++)
             layers_[i]->bias_init(ptr);
@@ -403,23 +404,23 @@ public:
 
 protected:
     float_t fprop_max(const vec_t& in, int idx = 0) {
-        const vec_t& prediction = fprop(in, idx);
-        return *std::max_element(std::begin(prediction), std::end(prediction));
+        const vec_t& prediction = fprop(in, idx);                   // prediction表示预测结果数组, idx表示线程
+        return *std::max_element(std::begin(prediction), std::end(prediction));         // 返回输出数组的最大元素（可能为1）
     }
 
-    label_t fprop_max_index(const vec_t& in, int idx = 0) {
-        return label_t(max_index(fprop(in, idx)));
+    label_t fprop_max_index(const vec_t& in, int idx = 0) {     // 返回预测数组中最大元素的索引号，即in表示一张图像对应的类别号
+        return label_t(max_index(fprop(in, idx)));                      
     }
 private:
 
-    void label2vector(const label_t* t, int num, std::vector<vec_t> *vec) const {
+    void label2vector(const label_t* t, int num, std::vector<vec_t> *vec) const {       // 将label数组转换为vec矩阵
         cnn_size_t outdim = out_dim();
 
-        assert(num > 0);
+        assert(num > 0);                        // num表示data_size
         assert(outdim > 0);
 
-        vec->reserve(num);
-        for (int i = 0; i < num; i++) {
+        vec->reserve(num);                          // 预留num个vec空间，，即vec
+        for (int i = 0; i < num; i++) {             // 第i张图像
             assert(t[i] < outdim);
             vec->emplace_back(outdim, target_value_min());
             vec->back()[t[i]] = target_value_max();
@@ -444,7 +445,7 @@ private:
      */
     void train_once(const vec_t* in, const vec_t* t, int size, const int nbThreads = CNN_TASK_SIZE) {
         if (size == 1) {
-            bprop(fprop(in[0]), t[0]);
+            bprop(fprop(in[0]), t[0]);                  
             layers_.update_weights(&optimizer_, 1, 1);
         } else {
             train_onebatch(in, t, size, nbThreads);
@@ -459,23 +460,25 @@ private:
      * @param batch_size the number of data points to use in this batch 
      */
     void train_onebatch(const vec_t* in, const vec_t* t, int batch_size, const int num_tasks = CNN_TASK_SIZE) {
-        int num_threads = std::min(batch_size, num_tasks);
+        int num_threads = std::min(batch_size, num_tasks);          // 取batch_size和num_tasks的较小值
+                                                                                            // 取num_tasks=8，则num_threads=8
 
         // number of data points to use in each thread
-        int data_per_thread = (batch_size + num_threads - 1) / num_threads;
+        int data_per_thread = (batch_size + num_threads - 1) / num_threads;     // 每个线程使用data的数量
+                                                                                // 取batch_size=8，num_threads=8，则data_per_thread=4
 
         // i is the thread / worker index
-        for_i(num_threads, [&](int i) {
-            int start_index = i * data_per_thread;
-            int end_index = std::min(batch_size, start_index + data_per_thread);
+        for_i(num_threads, [&](int i) {                         // i为thread序号
+            int start_index = i * data_per_thread;          // 每个thread的起始点
+            int end_index = std::min(batch_size, start_index + data_per_thread);        // 防止end_index越界
 
             // loop over data points in this batch assigned to thread i
-            for (int j = start_index; j < end_index; ++j)
-                bprop(fprop(in[j], i), t[j], i);
+            for (int j = start_index; j < end_index; ++j)       // 将一个thread处理start_index到end_index序号的元素
+                bprop(fprop(in[j], i), t[j], i);                    // frop(in[j], i)表示out数组，i即idx表示线程号，用多线程处理；
         }, 1);
         
         // merge all dW and update W by optimizer
-        layers_.update_weights(&optimizer_, num_threads, batch_size);
+        layers_.update_weights(&optimizer_, num_threads, batch_size);       // 更新权值
     }
 
     void calc_hessian(const std::vector<vec_t>& in, int size_initialize_hessian = 500) {
@@ -501,16 +504,16 @@ private:
         return false;
     }
 
-    const vec_t& fprop(const vec_t& in, int idx = 0) {
+    const vec_t& fprop(const vec_t& in, int idx = 0) {          // 无标签地前向传导，idx表示线程
         if (in.size() != (size_t)in_dim())
             data_mismatch(*layers_[0], in);
-        return layers_.head()->forward_propagation(in, idx);
+        return layers_.head()->forward_propagation(in, idx);        // 在layer上执行前向传播
     }
 
-    float_t get_loss(const vec_t& out, const vec_t& t) {
-        float_t e = float_t(0);
-        assert(out.size() == t.size());
-        for(size_t i = 0; i < out.size(); i++){ e += E::f(out[i], t[i]); }
+    float_t get_loss(const vec_t& out, const vec_t& t) {            // get_loss计算一张图像的loss值
+        float_t e = float_t(0);                                                      // out为一张图像的输出，t为标签号即[0, 0, 1, 0]形式
+        assert(out.size() == t.size());                 // 保证位数相同
+        for(size_t i = 0; i < out.size(); i++){ e += E::f(out[i], t[i]); }      // 计算一张图像的输出loss值
         return e;
     }
 
@@ -527,17 +530,17 @@ private:
         layers_.tail()->back_propagation_2nd(delta);
     }
 
-    void bprop(const vec_t& out, const vec_t& t, int idx = 0) {
-        vec_t delta(out_dim());
+    void bprop(const vec_t& out, const vec_t& t, int idx = 0) {             // out表示网络输出向量，t表示实际label向量，idx=0
+        vec_t delta(out_dim());                             // 计算该层的delta
         const activation::function& h = layers_.tail()->activation_function();
 
-        if (is_canonical_link(h)) {
+        if (is_canonical_link(h)) {                       // 判断是否有activation function
             // we have a combination of loss function and last layer
             // output activation function which is such that
             // dE / da = (dE/dy) * (dy/da) = y - target
-            for_i(out_dim(), [&](int i){ delta[i] = out[i] - t[i]; });
-        } else {
-            vec_t dE_dy = gradient<E>(out, t);
+            for_i(out_dim(), [&](int i){ delta[i] = out[i] - t[i]; });              // 计算输出层delta数组，只有一张图像
+        } else {                                                        
+            vec_t dE_dy = gradient<E>(out, t);      // 如果没有activation，则计算梯度
 
             // delta = dE/da = (dE/dy) * (dy/da)
             for (size_t i = 0; i < out_dim(); i++) {
@@ -546,20 +549,20 @@ private:
             }
         }
 
-        layers_.tail()->back_propagation(delta, idx);
+        layers_.tail()->back_propagation(delta, idx);               // 最后一层传递delta
     }
 
     bool calc_delta(const vec_t* in, const vec_t* v, int data_size, vec_t& w, vec_t& dw, int check_index, double eps) {
         static const float_t delta = 1e-10;
 
-        std::fill(dw.begin(), dw.end(), float_t(0));
+        std::fill(dw.begin(), dw.end(), float_t(0));        // 用0填充dw
 
         // calculate dw/dE by numeric
-        float_t prev_w = w[check_index];
+        float_t prev_w = w[check_index];                // check_index表示w中的第i个元素
 
         w[check_index] = prev_w + delta;
         float_t f_p = float_t(0);
-        for(int i = 0; i < data_size; i++) { f_p += get_loss(fprop(in[i]), v[i]); }
+        for(int i = 0; i < data_size; i++) { f_p += get_loss(fprop(in[i]), v[i]); }     // data_size表示
 
         float_t f_m = float_t(0);
         w[check_index] = prev_w - delta;
@@ -631,10 +634,10 @@ private:
  * @return [vector of vec_c (sample) to be passed to test function]
  */
 inline std::vector<vec_t> image2vec(const float_t* data, const unsigned int  rows, const unsigned int cols, const unsigned int sizepatch, const unsigned int step=1)
-{
-    assert(step>0);
+{                                            // 将图像转换为vector向量
+    assert(step>0);             
     std::vector<vec_t> res((cols-sizepatch)*(rows-sizepatch)/(step*step),vec_t(sizepatch*sizepatch));
-        for_i((cols-sizepatch)*(rows-sizepatch)/(step*step), [&](int count)
+        for_i((cols-sizepatch)*(rows-sizepatch)/(step*step), [&](int count)         // 总共(cols-sizepatch)*(rows-sizepatch)/(step*step)个patch，每个patch为sizepatch
         {
             const int j = step*(count / ((cols-sizepatch)/step));
             const int i = step*(count % ((cols-sizepatch)/step));
@@ -642,7 +645,7 @@ inline std::vector<vec_t> image2vec(const float_t* data, const unsigned int  row
             //vec_t sample(sizepatch*sizepatch);
 
             if (i+sizepatch < cols && j+sizepatch < rows)
-            for (unsigned int k=0;k<sizepatch*sizepatch;k++)
+            for (unsigned int k=0;k<sizepatch*sizepatch;k++)     // 每个patch有k个元素
             //for_i(sizepatch*sizepatch, [&](int k)
             {
                 unsigned int y = k / sizepatch + j;
